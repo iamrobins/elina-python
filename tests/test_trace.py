@@ -93,3 +93,13 @@ def test_reject_generator_functions():
         @trace
         def stream():
             yield "token"
+
+
+@pytest.mark.parametrize("capture_input", [False, True])
+def test_builtin_without_signature_can_be_traced(tracer_setup, monkeypatch, capture_input):
+    monkeypatch.setattr(runtime, "_config", runtime.Config(api_key="test", capture_input=capture_input))
+    traced_max = trace(max)
+    assert traced_max(1, 2) == 2
+    span = tracer_setup.get_finished_spans()[0]
+    assert span.name == "max"
+    assert "elinaobs.input" not in span.attributes

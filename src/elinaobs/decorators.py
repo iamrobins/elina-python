@@ -45,13 +45,12 @@ def trace(
         if inspect.isgeneratorfunction(fn) or inspect.isasyncgenfunction(fn):
             raise TypeError("@trace does not support generator functions in v0.1")
         label = name or fn.__qualname__
-        signature = inspect.signature(fn)
 
         def attach_input(span, args, kwargs, settings):
             if not settings.capture_input or not span.is_recording():
                 return
             try:
-                bound = signature.bind_partial(*args, **kwargs)
+                bound = inspect.signature(fn).bind_partial(*args, **kwargs)
                 value = dict(bound.arguments)
                 value.pop("self", None)
                 value.pop("cls", None)
