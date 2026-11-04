@@ -2,6 +2,8 @@
 
 An **implementation starter**, not a released SDK. Name `elinaobs` is a placeholder. License is intentionally not selected yet.
 
+The locked v0.1 Python SDK implementation checklist is complete; release naming, licensing, and publishing remain separate decisions.
+
 ## Install
 
 ```bash

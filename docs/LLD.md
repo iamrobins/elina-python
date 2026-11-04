@@ -74,7 +74,7 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
 - `init` never silently replaces a compatible existing SDK provider.
 - Short-lived scripts may call `flush()`.
 
-## What to build next in the SDK (before production)
+## SDK hardening status (verified 2026-11-04)
 
 1. `diagnose()` exposes final exporter batch failures, flush-time queue drops,
    and HTTP retry attempts without logging credentials. Retry counting uses
@@ -82,12 +82,15 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
    configures an OpenTelemetry credential-provider session.
 2. In-process receiver tests verify endpoint, headers, protobuf shape and retry
    behavior. An optional test also verifies receipt through a real Collector.
-3. Test with standard third-party OTel instrumentation already registered.
-4. Add privacy controls (attribute allow/deny list, stronger redaction hooks).
-5. Test multiple Python versions and supported OTel releases, including
-   global-provider bootstrap order.
-6. Adopt OpenTelemetry `gen_ai.*` attributes from upstream instrumentation
-   without requiring frameworks in ElinaObs itself.
+3. Requests instrumentation started inside a decorator is captured; spans
+   outside the decorator are excluded.
+4. Exact-key allow/deny lists filter exported span, event and link attributes;
+   an optional redaction callback handles captured free text.
+5. Tests passed locally on Python 3.11 through 3.14 with OpenTelemetry 1.36.0
+   and 1.45.2. Both global-provider bootstrap orders
+   are covered. CI runs the same matrix when a remote is configured.
+6. `gen_ai.*` attributes emitted by a child span survive OTLP export without
+   framework-specific code.
 
 The above are engineering-hardening tasks, not invitations to add product
 features or framework-specific integration code.
