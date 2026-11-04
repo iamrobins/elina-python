@@ -54,7 +54,7 @@ def trace(
                 value = dict(bound.arguments)
                 value.pop("self", None)
                 value.pop("cls", None)
-                span.set_attribute("elinaobs.input", serialize(value, max_chars=settings.max_content_chars))
+                span.set_attribute("elinaobs.input", serialize(value, max_chars=settings.max_content_chars, redact=settings.redact))
             except Exception:  # instrumentation must not break the application
                 pass
 
@@ -62,7 +62,7 @@ def trace(
             if not settings.capture_output or not span.is_recording():
                 return
             try:
-                span.set_attribute("elinaobs.output", serialize(value, max_chars=settings.max_content_chars))
+                span.set_attribute("elinaobs.output", serialize(value, max_chars=settings.max_content_chars, redact=settings.redact))
             except Exception:
                 pass
 

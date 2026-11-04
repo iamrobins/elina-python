@@ -92,6 +92,23 @@ def test_capture_can_be_enabled(tracer_setup, monkeypatch):
     assert span.attributes["elinaobs.output"] == '"ok"'
 
 
+def test_capture_redaction_hook_covers_free_text(tracer_setup, monkeypatch):
+    monkeypatch.setattr(runtime, "_config", runtime.Config(
+        api_key="test", capture_input=True, capture_output=True,
+        redact=lambda value: value.replace("secret-value", "<redacted>"),
+    ))
+
+    @trace
+    def fn(question: str):
+        return question
+
+    fn("text with secret-value")
+    span = tracer_setup.get_finished_spans()[0]
+    assert "secret-value" not in span.attributes["elinaobs.input"]
+    assert "secret-value" not in span.attributes["elinaobs.output"]
+    assert "<redacted>" in span.attributes["elinaobs.input"]
+
+
 def test_reject_generator_functions():
     with pytest.raises(TypeError):
         @trace

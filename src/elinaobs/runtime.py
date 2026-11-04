@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from threading import Lock, RLock
+from typing import Callable
 
 from opentelemetry import trace as otel_trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -22,6 +23,7 @@ class Config:
     capture_input: bool = False
     capture_output: bool = False
     max_content_chars: int = 4000
+    redact: Callable[[str], str] | None = field(default=None, repr=False)
 
 
 class _TrackingExporter(OTLPSpanExporter):
@@ -67,6 +69,7 @@ def init(
     capture_input: bool = False,
     capture_output: bool = False,
     max_content_chars: int = 4000,
+    redact: Callable[[str], str] | None = None,
 ) -> None:
     """Register a selective OTel processor, preserving existing exporters.
 
@@ -79,7 +82,9 @@ def init(
         raise ValueError("endpoint must be an HTTP(S) URL")
     if max_content_chars < 100:
         raise ValueError("max_content_chars must be >= 100")
-    config = Config(api_key, endpoint, service_name, capture_input, capture_output, max_content_chars)
+    if redact is not None and not callable(redact):
+        raise ValueError("redact must be callable")
+    config = Config(api_key, endpoint, service_name, capture_input, capture_output, max_content_chars, redact)
     with _lock:
         if _closed:
             raise RuntimeError("ElinaObs was shut down. A fresh process is required for reinitialization.")

@@ -10,7 +10,7 @@ implement vendor/framework-specific integrations. Do not design server/UI.
 
 ```python
 init(api_key, endpoint, service_name, capture_input=False,
-     capture_output=False, max_content_chars=4000)
+     capture_output=False, max_content_chars=4000, redact=None)
 @trace
 @trace()
 @trace(name='Research Agent', as_type='agent')

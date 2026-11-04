@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from elinaobs.serialization import serialize
 
 
@@ -44,3 +46,8 @@ def test_mapping_reads_only_first_20_entries():
             raise AssertionError("read past capture limit")
 
     assert len(json.loads(serialize(MappingWithExtraEntries()))) == 20
+
+
+def test_redact_must_return_string():
+    with pytest.raises(TypeError, match="redact must return a string"):
+        serialize("secret", redact=lambda _: None)
