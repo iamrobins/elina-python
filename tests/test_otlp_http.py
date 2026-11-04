@@ -66,8 +66,8 @@ if {existing_provider}:
     assert otel_trace.get_tracer_provider() is provider
 @trace(name="agent", as_type="agent")
 def agent():
-    with otel_trace.get_tracer("some.library").start_as_current_span("child"):
-        pass
+    with otel_trace.get_tracer("some.library").start_as_current_span("child") as child:
+        child.set_attribute("gen_ai.request.model", "example-model")
 agent()
 assert flush(timeout_millis=10000)
 assert diagnose() == {{"failed_batches": 0}}
@@ -95,13 +95,18 @@ if {existing_provider}:
         assert headers["Content-Type"].startswith("application/x-protobuf")
         request = ExportTraceServiceRequest()
         request.ParseFromString(body)
-        names = [
-            s.name
+        spans = [
+            span
             for resource in request.resource_spans
             for scope in resource.scope_spans
-            for s in scope.spans
+            for span in scope.spans
         ]
-        assert sorted(names) == ["agent", "child"]
+        assert sorted(span.name for span in spans) == ["agent", "child"]
+        child = next(span for span in spans if span.name == "child")
+        assert any(
+            attr.key == "gen_ai.request.model" and attr.value.string_value == "example-model"
+            for attr in child.attributes
+        )
     finally:
         server.shutdown()
         server.server_close()
