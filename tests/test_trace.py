@@ -1,7 +1,11 @@
 import asyncio
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from threading import Thread
 
 import pytest
+import requests
 from opentelemetry import trace as otel_trace
+from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from elinaobs import trace
 from elinaobs import runtime
 
@@ -103,3 +107,39 @@ def test_builtin_without_signature_can_be_traced(tracer_setup, monkeypatch, capt
     span = tracer_setup.get_finished_spans()[0]
     assert span.name == "max"
     assert "elinaobs.input" not in span.attributes
+
+
+def test_existing_requests_instrumentation_is_captured(tracer_setup):
+    class Receiver(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *_):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Receiver)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    instrumentor = RequestsInstrumentor()
+    instrumentor.instrument()
+    try:
+        url = f"http://127.0.0.1:{server.server_port}/"
+        requests.get(url, timeout=2).raise_for_status()
+
+        @trace(name="agent")
+        def agent():
+            requests.get(url, timeout=2).raise_for_status()
+
+        agent()
+        spans = tracer_setup.get_finished_spans()
+        assert len(spans) == 2
+        root = next(span for span in spans if span.name == "agent")
+        child = next(span for span in spans if span.name != "agent")
+        assert child.parent.span_id == root.context.span_id
+        assert child.context.trace_id == root.context.trace_id
+    finally:
+        instrumentor.uninstrument()
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
