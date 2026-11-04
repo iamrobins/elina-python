@@ -74,8 +74,9 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
 
 ## What to build next in the SDK (before production)
 
-1. Meter and expose exporter batch failures, retry events and dropped spans;
-   add `diagnose()` without logging credentials.
+1. `diagnose()` exposes final exporter batch failures without logging credentials.
+   Verify retries against a receiver; retry counts and queue drops are not
+   exposed by the public exporter and batch processor APIs and remain open.
 2. Integration tests against a real OTLP test receiver to verify endpoint,
    headers, protobuf shape and retry behavior.
 3. Test with standard third-party OTel instrumentation already registered.

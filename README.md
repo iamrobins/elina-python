@@ -36,7 +36,7 @@ The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt
 - Optional bounded input/output capture, disabled by default.
 - Exceptions automatically record OTel error status/events.
 - Shares an existing OpenTelemetry SDK TracerProvider when present.
-- `flush()` reports failed export batches; `diagnose()["failed_batches"]` counts them without exposing credentials.
+- `flush()` reports failed export batches; `diagnose()["failed_batches"]` counts final batch failures without exposing credentials. Successful retries are not counted; queue drops are not currently measurable through the batch processor's public API.
 
 ## Non-goals for v0.1
 

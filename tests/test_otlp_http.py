@@ -15,14 +15,17 @@ from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTrace
 
 
 @pytest.mark.parametrize("existing_provider", [False, True])
-def test_otlp_http_endpoint_bearer_auth_and_protobuf(existing_provider):
+@pytest.mark.parametrize("retry_first", [False, True])
+def test_otlp_http_endpoint_bearer_auth_and_protobuf(existing_provider, retry_first):
     received = []
 
     class Receiver(BaseHTTPRequestHandler):
         def do_POST(self):
             body = self.rfile.read(int(self.headers["content-length"]))
             received.append((self.path, self.headers, body))
-            self.send_response(200)
+            self.send_response(503 if retry_first and len(received) == 1 else 200)
+            if retry_first and len(received) == 1:
+                self.send_header("Retry-After", "0")
             self.send_header("Content-Type", "application/x-protobuf")
             self.send_header("Content-Length", "0")
             self.end_headers()
@@ -79,8 +82,14 @@ if {existing_provider}:
             capture_output=True, text=True, timeout=20, env=env,
         )
         assert completed.returncode == 0, completed.stderr
-        assert len(received) == 1
-        path, headers, body = received[0]
+        assert len(received) == (2 if retry_first else 1)
+        assert all(
+            request[0] == received[0][0]
+            and request[1]["Authorization"] == "Bearer test-token"
+            and request[2] == received[0][2]
+            for request in received
+        )
+        path, headers, body = received[-1]
         assert path == "/v1/traces"
         assert headers["Authorization"] == "Bearer test-token"
         assert headers["Content-Type"].startswith("application/x-protobuf")
