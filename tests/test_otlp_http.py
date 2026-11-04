@@ -37,7 +37,7 @@ def test_otlp_http_endpoint_bearer_auth_and_protobuf(existing_provider):
         _, port = server.server_address
         script = f'''
 from opentelemetry import trace as otel_trace
-from elinaobs import init, trace, flush
+from elinaobs import diagnose, init, trace, flush
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -67,6 +67,7 @@ def agent():
         pass
 agent()
 assert flush(timeout_millis=10000)
+assert diagnose() == {{"failed_batches": 0}}
 if {existing_provider}:
     assert sorted(s.name for s in existing_exporter.get_finished_spans()) == ["agent", "child", "unrelated"]
 '''
@@ -92,6 +93,42 @@ if {existing_provider}:
             for s in scope.spans
         ]
         assert sorted(names) == ["agent", "child"]
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=2)
+
+
+def test_failed_export_is_reported():
+    class Receiver(BaseHTTPRequestHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers["content-length"]))
+            self.send_response(400)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+
+        def log_message(self, *_):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Receiver)
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        script = f'''
+from elinaobs import diagnose, flush, init, trace
+init(api_key="test-token", endpoint="http://127.0.0.1:{server.server_port}/v1/traces")
+@trace
+def agent():
+    pass
+agent()
+assert flush(timeout_millis=10000) is False
+assert diagnose() == {{"failed_batches": 1}}
+assert "test-token" not in repr(diagnose())
+'''
+        completed = subprocess.run(
+            [sys.executable, "-c", script], capture_output=True, text=True, timeout=20,
+        )
+        assert completed.returncode == 0, completed.stderr
     finally:
         server.shutdown()
         server.server_close()

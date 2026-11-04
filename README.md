@@ -12,7 +12,7 @@ pytest -q
 ## Public API
 
 ```python
-from elinaobs import init, trace, flush, shutdown
+from elinaobs import init, trace, flush, shutdown, diagnose
 
 init(api_key="...", endpoint="http://localhost:3000/v1/traces", service_name="my-agent")
 
@@ -36,6 +36,7 @@ The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt
 - Optional bounded input/output capture, disabled by default.
 - Exceptions automatically record OTel error status/events.
 - Shares an existing OpenTelemetry SDK TracerProvider when present.
+- `flush()` reports failed export batches; `diagnose()["failed_batches"]` counts them without exposing credentials.
 
 ## Non-goals for v0.1
 
@@ -52,8 +53,8 @@ The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt
 - `as_type="event"` is a timed span category, not an OTel instant event.
 - Incoming external spans from `opentelemetry-instrument` share global provider
   and may require controlling initialization order.
-- Bounded batches can drop data on overload; implement drop counters and
-  `diagnose()` before calling this production ready.
+- Bounded batches can drop data on overload; drop and retry counters are not
+  exposed yet. Export failures remain counted even if later batches succeed.
 - Input/output redaction is best-effort only. Explicitly inspect anything you
   opt in to collect.
 - `shutdown()` ends only ElinaObs's processor. Do not reinitialize the SDK in

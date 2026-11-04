@@ -2,13 +2,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from threading import RLock
+from threading import Lock, RLock
 
 from opentelemetry import trace as otel_trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExportResult
 from opentelemetry.trace import ProxyTracerProvider
 
 from .processing import ScopedSpanProcessor
@@ -24,9 +24,29 @@ class Config:
     max_content_chars: int = 4000
 
 
+class _TrackingExporter(OTLPSpanExporter):
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self._lock = Lock()
+        self.failed_batches = 0
+
+    def export(self, spans):
+        try:
+            result = super().export(spans)
+        except Exception:
+            with self._lock:
+                self.failed_batches += 1
+            raise
+        if result != SpanExportResult.SUCCESS:
+            with self._lock:
+                self.failed_batches += 1
+        return result
+
+
 _lock = RLock()
 _config: Config | None = None
 _processor: ScopedSpanProcessor | None = None
+_exporter: _TrackingExporter | None = None
 _owned_provider: TracerProvider | None = None
 _closed = False
 
@@ -52,7 +72,7 @@ def init(
 
     The endpoint is the full OTLP/HTTP traces URL, not just the server base.
     """
-    global _config, _processor, _owned_provider
+    global _config, _processor, _exporter, _owned_provider
     if not api_key or not api_key.strip():
         raise ValueError("api_key must not be empty")
     if not endpoint.startswith(("https://", "http://")):
@@ -80,7 +100,7 @@ def init(
                 "Existing global OTel provider does not support SDK span processors. "
                 "Use an OpenTelemetry SDK TracerProvider before elinaobs.init()."
             )
-        exporter = OTLPSpanExporter(
+        exporter = _TrackingExporter(
             endpoint=endpoint,
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=5,
@@ -93,14 +113,26 @@ def init(
         )
         processor = ScopedSpanProcessor(batch)
         provider.add_span_processor(processor)
+        _exporter = exporter
         _processor = processor
         _config = config
 
 
 def flush(timeout_millis: int = 5000) -> bool:
-    """Best-effort flush of ElinaObs's exporter, not all global exporters."""
+    """Flush ElinaObs's exporter; report any failed batch since initialization."""
     processor = _processor
-    return True if processor is None else processor.force_flush(timeout_millis)
+    if processor is None:
+        return True
+    return processor.force_flush(timeout_millis) and diagnose()["failed_batches"] == 0
+
+
+def diagnose() -> dict[str, int]:
+    """Return export failure counts without endpoint or credential details."""
+    exporter = _exporter
+    if exporter is None:
+        return {"failed_batches": 0}
+    with exporter._lock:
+        return {"failed_batches": exporter.failed_batches}
 
 
 def shutdown() -> None:
