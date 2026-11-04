@@ -25,9 +25,19 @@ async def run(question):
 # The existing OTel-instrumented operations called inside run() are children.
 ```
 
+To send a demo trace to the local Elina server, create a project in the dashboard and copy its one-time ingestion key. Then, from this directory in PowerShell:
+
+```powershell
+$env:ELINA_WRITE_KEY = "paste-project-ingestion-key"
+$env:ELINA_BASE_URL = "http://127.0.0.1:3000"
+python examples/agent.py
+```
+
+The script prints the trace ID and reports whether export succeeded. Open the project’s Traces page and select that ID to inspect the three spans and their captured input/output.
+
 Only operations that are explicitly decorated or already instrumented by a compatible OpenTelemetry instrumentation package create spans. **No framework integrations are installed, imported, or configured by ElinaObs.**
 
-The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt to send to `localhost:3000/v1/traces` and fail to deliver until a compatible receiver is running. The default tests use in-memory and local HTTP receivers.
+The Elina receiver lives in the sibling `elina-server` directory. Start it before running `examples/agent.py`. The default tests use in-memory and local HTTP receivers.
 
 To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINARY` to the Collector executable path and run `python -m pytest -q tests/test_collector.py`. This optional test starts a local Collector with a file exporter and checks the received spans.
 
