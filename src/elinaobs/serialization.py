@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from itertools import islice
 
 _REDACT_PARTS = (
     "password", "secret", "token", "authorization", "apikey",
@@ -28,7 +29,7 @@ def _safe(value, *, depth: int, seen: set[int]):
         try:
             if isinstance(value, Mapping):
                 result = {}
-                for key, child in list(value.items())[:20]:
+                for key, child in islice(value.items(), 20):
                     if not isinstance(key, str):
                         continue
                     normalized_key = key.lower().replace("_", "").replace("-", "")

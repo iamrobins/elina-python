@@ -1,3 +1,5 @@
+import json
+
 from elinaobs.serialization import serialize
 
 
@@ -32,3 +34,13 @@ def test_common_credential_key_spellings():
 
 def test_bounded():
     assert len(serialize("a" * 10000, max_chars=100)) <= 100
+
+
+def test_mapping_reads_only_first_20_entries():
+    class MappingWithExtraEntries(dict):
+        def items(self):
+            for i in range(20):
+                yield f"key{i}", i
+            raise AssertionError("read past capture limit")
+
+    assert len(json.loads(serialize(MappingWithExtraEntries()))) == 20
