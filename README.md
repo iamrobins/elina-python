@@ -40,7 +40,7 @@ To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINAR
 - `attribute_allowlist` and `attribute_denylist` filter span, event, and link attributes in ElinaObs exports; the denylist wins when both contain a key.
 - Exceptions automatically record OTel error status/events.
 - Shares an existing OpenTelemetry SDK TracerProvider when present.
-- `flush()` reports failed export batches or dropped spans. `diagnose()` returns `failed_batches` and `dropped_spans` without exposing credentials. Drop counts are updated after a successful processor flush; successful retries are not counted.
+- `flush()` reports failed export batches or dropped spans. `diagnose()` returns `failed_batches`, `dropped_spans`, and `retry_attempts` without exposing credentials. Drop counts are updated after a successful processor flush; retry attempts count extra HTTP requests made for a batch.
 
 ## Non-goals for v0.1
 
@@ -58,8 +58,9 @@ To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINAR
 - Incoming external spans from `opentelemetry-instrument` share global provider
   and may require controlling initialization order.
 - Bounded batches can drop data on overload. `dropped_spans` is current only
-  after `flush()` or `shutdown()`; retry attempt counts are not exposed.
-  Export failures remain counted even if later batches succeed.
+  after `flush()` or `shutdown()`. `retry_attempts` is `None` when an OpenTelemetry
+  credential-provider session is configured. Export failures remain counted
+  even if later batches succeed.
 - Input/output redaction is best-effort only. Explicitly inspect anything you
   opt in to collect.
 - Attribute lists do not change an application's other OpenTelemetry exporters

@@ -16,6 +16,7 @@ init(api_key, endpoint, service_name, capture_input=False,
 @trace()
 @trace(name='Research Agent', as_type='agent')
 flush(timeout_millis=5000) -> bool
+diagnose() -> dict[str, int | None]
 shutdown() -> None
 ```
 
@@ -75,10 +76,10 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
 
 ## What to build next in the SDK (before production)
 
-1. `diagnose()` exposes final exporter batch failures and flush-time queue drops
-   without logging credentials. The in-process receiver verifies retries;
-   retry attempt counts remain open because the public exporter API does not
-   expose them.
+1. `diagnose()` exposes final exporter batch failures, flush-time queue drops,
+   and HTTP retry attempts without logging credentials. Retry counting uses
+   the exporter's public session hook; it is unavailable when an application
+   configures an OpenTelemetry credential-provider session.
 2. In-process receiver tests verify endpoint, headers, protobuf shape and retry
    behavior. An optional test also verifies receipt through a real Collector.
 3. Test with standard third-party OTel instrumentation already registered.

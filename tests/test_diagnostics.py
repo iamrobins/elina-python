@@ -2,6 +2,7 @@ from threading import Event, Lock
 
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
 from elinaobs import diagnose, flush, runtime
 from elinaobs.context import capture_active
@@ -16,6 +17,7 @@ def test_queue_drop_is_counted_after_flush(monkeypatch):
             self._lock = Lock()
             self.attempted_spans = 0
             self.failed_batches = 0
+            self.retry_attempts = 0
 
         def export(self, spans):
             self.started.set()
@@ -48,8 +50,18 @@ def test_queue_drop_is_counted_after_flush(monkeypatch):
         assert diagnose()["dropped_spans"] == 0
         exporter.release.set()
         assert flush(10000) is False
-        assert diagnose() == {"failed_batches": 0, "dropped_spans": 1}
+        assert diagnose() == {"failed_batches": 0, "dropped_spans": 1, "retry_attempts": 0}
     finally:
         capture_active.reset(token)
         exporter.release.set()
         provider.shutdown()
+
+
+def test_otel_credential_provider_session_is_preserved(monkeypatch):
+    sessions = []
+    monkeypatch.setenv("OTEL_PYTHON_EXPORTER_OTLP_HTTP_TRACES_CREDENTIAL_PROVIDER", "custom.provider")
+    monkeypatch.setattr(OTLPSpanExporter, "__init__", lambda self, **kwargs: sessions.append(kwargs["session"]))
+    exporter = runtime._TrackingExporter(endpoint="http://127.0.0.1/v1/traces")
+    monkeypatch.setattr(runtime, "_exporter", exporter)
+    assert sessions == [None]
+    assert diagnose()["retry_attempts"] is None

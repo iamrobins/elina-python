@@ -79,7 +79,7 @@ def agent():
         child.add_event("test-event", {{"private.data": "event-secret"}})
 agent()
 assert flush(timeout_millis=10000)
-assert diagnose() == {{"failed_batches": 0, "dropped_spans": 0}}
+assert diagnose() == {{"failed_batches": 0, "dropped_spans": 0, "retry_attempts": {1 if retry_first else 0}}}
 if {existing_provider}:
     assert sorted(s.name for s in existing_exporter.get_finished_spans()) == ["agent", "child", "unrelated"]
     assert next(s for s in existing_exporter.get_finished_spans() if s.name == "child").attributes["private.data"] == "span-secret"
@@ -159,7 +159,7 @@ def agent():
     pass
 agent()
 assert flush(timeout_millis=10000) is False
-assert diagnose() == {{"failed_batches": 1, "dropped_spans": 0}}
+assert diagnose() == {{"failed_batches": 1, "dropped_spans": 0, "retry_attempts": 0}}
 assert "test-token" not in repr(diagnose())
 '''
         completed = subprocess.run(

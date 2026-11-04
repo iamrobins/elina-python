@@ -1,10 +1,12 @@
 """SDK lifecycle and standard OTLP export configuration."""
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from threading import Lock, RLock
 from typing import Callable
 
+from requests import Session
 from opentelemetry import trace as otel_trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -37,12 +39,27 @@ class _AttributeView:
         return getattr(self._original, name)
 
 
+class _CountingSession(Session):
+    def __init__(self) -> None:
+        super().__init__()
+        self.attempts = 0
+
+    def request(self, *args, **kwargs):
+        self.attempts += 1
+        return super().request(*args, **kwargs)
+
+
 class _TrackingExporter(OTLPSpanExporter):
     def __init__(self, *, attribute_allowlist=None, attribute_denylist=(), **kwargs) -> None:
-        super().__init__(**kwargs)
+        # Preserve an OTel credential-provider session when the application configured one.
+        self._counting_session = (
+            None if os.getenv("OTEL_PYTHON_EXPORTER_OTLP_HTTP_TRACES_CREDENTIAL_PROVIDER") else _CountingSession()
+        )
+        super().__init__(session=self._counting_session, **kwargs)
         self._lock = Lock()
         self.failed_batches = 0
         self.attempted_spans = 0
+        self.retry_attempts = None if self._counting_session is None else 0
         self._allowlist = None if attribute_allowlist is None else set(attribute_allowlist)
         self._denylist = set(attribute_denylist)
 
@@ -63,12 +80,17 @@ class _TrackingExporter(OTLPSpanExporter):
             spans = filtered
         with self._lock:
             self.attempted_spans += len(spans)
+        before = self._counting_session.attempts if self._counting_session is not None else 0
         try:
             result = super().export(spans)
         except Exception:
             with self._lock:
                 self.failed_batches += 1
             raise
+        finally:
+            if self._counting_session is not None:
+                with self._lock:
+                    self.retry_attempts += max(0, self._counting_session.attempts - before - 1)
         if result != SpanExportResult.SUCCESS:
             with self._lock:
                 self.failed_batches += 1
@@ -178,18 +200,23 @@ def flush(timeout_millis: int = 5000) -> bool:
     if not processor.force_flush(timeout_millis):
         return False
     exporter = _exporter
+    assert exporter is not None
     with _lock, exporter._lock:
         _dropped_spans = max(_dropped_spans, processor.flushed_spans - exporter.attempted_spans)
         return exporter.failed_batches == 0 and _dropped_spans == 0
 
 
-def diagnose() -> dict[str, int]:
+def diagnose() -> dict[str, int | None]:
     """Return failure and last-flush drop counts without credentials."""
     exporter = _exporter
     if exporter is None:
-        return {"failed_batches": 0, "dropped_spans": 0}
+        return {"failed_batches": 0, "dropped_spans": 0, "retry_attempts": 0}
     with _lock, exporter._lock:
-        return {"failed_batches": exporter.failed_batches, "dropped_spans": _dropped_spans}
+        return {
+            "failed_batches": exporter.failed_batches,
+            "dropped_spans": _dropped_spans,
+            "retry_attempts": exporter.retry_attempts,
+        }
 
 
 def shutdown() -> None:
