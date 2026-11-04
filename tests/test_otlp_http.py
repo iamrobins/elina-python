@@ -40,7 +40,7 @@ def test_otlp_http_endpoint_bearer_auth_and_protobuf(existing_provider, retry_fi
         _, port = server.server_address
         script = f'''
 from opentelemetry import trace as otel_trace
-from elinaobs import diagnose, init, trace, flush
+from elinaobs import diagnose, init, trace, flush, shutdown
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
@@ -73,6 +73,11 @@ assert flush(timeout_millis=10000)
 assert diagnose() == {{"failed_batches": 0}}
 if {existing_provider}:
     assert sorted(s.name for s in existing_exporter.get_finished_spans()) == ["agent", "child", "unrelated"]
+    shutdown()
+    with otel_trace.get_tracer("some.library").start_as_current_span("after-shutdown"):
+        pass
+    assert otel_trace.get_tracer_provider() is provider
+    assert sorted(s.name for s in existing_exporter.get_finished_spans()) == ["after-shutdown", "agent", "child", "unrelated"]
 '''
         repo = Path(__file__).resolve().parents[1]
         env = os.environ.copy()
