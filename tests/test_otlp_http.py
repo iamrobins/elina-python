@@ -19,7 +19,7 @@ def test_otlp_http_endpoint_bearer_auth_and_protobuf():
     class Receiver(BaseHTTPRequestHandler):
         def do_POST(self):
             body = self.rfile.read(int(self.headers["content-length"]))
-            received.append((self.path, dict(self.headers), body))
+            received.append((self.path, self.headers, body))
             self.send_response(200)
             self.send_header("Content-Type", "application/x-protobuf")
             self.send_header("Content-Length", "0")
