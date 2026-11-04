@@ -78,8 +78,8 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
 1. `diagnose()` exposes final exporter batch failures without logging credentials.
    Verify retries against a receiver; retry counts and queue drops are not
    exposed by the public exporter and batch processor APIs and remain open.
-2. Integration tests against a real OTLP test receiver to verify endpoint,
-   headers, protobuf shape and retry behavior.
+2. In-process receiver tests verify endpoint, headers, protobuf shape and retry
+   behavior. An optional test also verifies receipt through a real Collector.
 3. Test with standard third-party OTel instrumentation already registered.
 4. Add privacy controls (attribute allow/deny list, stronger redaction hooks).
 5. Test multiple Python versions and supported OTel releases, including

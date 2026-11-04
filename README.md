@@ -25,7 +25,9 @@ async def run(question):
 
 Only operations that are explicitly decorated or already instrumented by a compatible OpenTelemetry instrumentation package create spans. **No framework integrations are installed, imported, or configured by ElinaObs.**
 
-The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt to send to `localhost:3000/v1/traces` and fail to deliver until a compatible receiver is running. The tests use an in-memory exporter and require no server.
+The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt to send to `localhost:3000/v1/traces` and fail to deliver until a compatible receiver is running. The default tests use in-memory and local HTTP receivers.
+
+To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINARY` to the Collector executable path and run `python -m pytest -q tests/test_collector.py`. This optional test starts a local Collector with a file exporter and checks the received spans.
 
 ## What it does
 
