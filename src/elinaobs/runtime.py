@@ -42,6 +42,7 @@ class _TrackingExporter(OTLPSpanExporter):
         super().__init__(**kwargs)
         self._lock = Lock()
         self.failed_batches = 0
+        self.attempted_spans = 0
         self._allowlist = None if attribute_allowlist is None else set(attribute_allowlist)
         self._denylist = set(attribute_denylist)
 
@@ -60,6 +61,8 @@ class _TrackingExporter(OTLPSpanExporter):
                 view.links = tuple(self._filter(link) for link in span.links)
                 filtered.append(view)
             spans = filtered
+        with self._lock:
+            self.attempted_spans += len(spans)
         try:
             result = super().export(spans)
         except Exception:
@@ -78,6 +81,8 @@ _processor: ScopedSpanProcessor | None = None
 _exporter: _TrackingExporter | None = None
 _owned_provider: TracerProvider | None = None
 _closed = False
+# shortcut: drop counts update only after flush, use processor metrics when supported across OTel versions.
+_dropped_spans = 0
 
 
 def get_config() -> Config:
@@ -165,20 +170,26 @@ def init(
 
 
 def flush(timeout_millis: int = 5000) -> bool:
-    """Flush ElinaObs's exporter; report any failed batch since initialization."""
+    """Flush ElinaObs's exporter; report failed batches or dropped spans."""
+    global _dropped_spans
     processor = _processor
     if processor is None:
         return True
-    return processor.force_flush(timeout_millis) and diagnose()["failed_batches"] == 0
+    if not processor.force_flush(timeout_millis):
+        return False
+    exporter = _exporter
+    with _lock, exporter._lock:
+        _dropped_spans = max(_dropped_spans, processor.flushed_spans - exporter.attempted_spans)
+        return exporter.failed_batches == 0 and _dropped_spans == 0
 
 
 def diagnose() -> dict[str, int]:
-    """Return export failure counts without endpoint or credential details."""
+    """Return failure and last-flush drop counts without credentials."""
     exporter = _exporter
     if exporter is None:
-        return {"failed_batches": 0}
-    with exporter._lock:
-        return {"failed_batches": exporter.failed_batches}
+        return {"failed_batches": 0, "dropped_spans": 0}
+    with _lock, exporter._lock:
+        return {"failed_batches": exporter.failed_batches, "dropped_spans": _dropped_spans}
 
 
 def shutdown() -> None:
@@ -189,6 +200,6 @@ def shutdown() -> None:
             return
         processor = _processor
         if processor is not None:
-            processor.force_flush(timeout_millis=5000)
+            flush(timeout_millis=5000)
             processor.shutdown()
         _closed = True

@@ -75,9 +75,10 @@ Types: `span`, `event`, `generation`, `agent`, `tool`, `chain`, `retriever`,
 
 ## What to build next in the SDK (before production)
 
-1. `diagnose()` exposes final exporter batch failures without logging credentials.
-   Verify retries against a receiver; retry counts and queue drops are not
-   exposed by the public exporter and batch processor APIs and remain open.
+1. `diagnose()` exposes final exporter batch failures and flush-time queue drops
+   without logging credentials. The in-process receiver verifies retries;
+   retry attempt counts remain open because the public exporter API does not
+   expose them.
 2. In-process receiver tests verify endpoint, headers, protobuf shape and retry
    behavior. An optional test also verifies receipt through a real Collector.
 3. Test with standard third-party OTel instrumentation already registered.

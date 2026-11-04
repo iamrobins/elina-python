@@ -20,6 +20,8 @@ class ScopedSpanProcessor(SpanProcessor):
         self._downstream = downstream
         self._eligible: set[tuple[int, int]] = set()
         self._lock = Lock()
+        self.ended_spans = 0
+        self.flushed_spans = 0
 
     @staticmethod
     def _key(span) -> tuple[int, int]:
@@ -40,10 +42,16 @@ class ScopedSpanProcessor(SpanProcessor):
             if key not in self._eligible:
                 return
             self._eligible.remove(key)
-        self._downstream.on_end(span)
+            if span.context.trace_flags.sampled:
+                self.ended_spans += 1
+            self._downstream.on_end(span)
 
     def force_flush(self, timeout_millis: int = 30000) -> bool:
-        return self._downstream.force_flush(timeout_millis=timeout_millis)
+        with self._lock:
+            result = self._downstream.force_flush(timeout_millis=timeout_millis)
+            if result:
+                self.flushed_spans = self.ended_spans
+            return result
 
     def shutdown(self) -> None:
         self._downstream.shutdown()
