@@ -50,6 +50,15 @@ if {existing_provider}:
         pass
 init(api_key="test-token", endpoint="http://127.0.0.1:{port}/v1/traces",
      service_name="smoke-test")
+init(api_key="test-token", endpoint="http://127.0.0.1:{port}/v1/traces",
+     service_name="smoke-test")
+try:
+    init(api_key="different-token", endpoint="http://127.0.0.1:{port}/v1/traces",
+         service_name="smoke-test")
+except RuntimeError:
+    pass
+else:
+    raise AssertionError("conflicting init must fail")
 if {existing_provider}:
     assert otel_trace.get_tracer_provider() is provider
 @trace(name="agent", as_type="agent")
