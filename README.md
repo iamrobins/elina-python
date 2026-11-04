@@ -35,6 +35,7 @@ The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt
 - OTLP/HTTP protobuf, bearer-token auth, background batching.
 - Optional bounded input/output capture, disabled by default.
 - An optional `redact` callback can remove secrets from captured free text before export.
+- `attribute_allowlist` and `attribute_denylist` filter span, event, and link attributes in ElinaObs exports; the denylist wins when both contain a key.
 - Exceptions automatically record OTel error status/events.
 - Shares an existing OpenTelemetry SDK TracerProvider when present.
 - `flush()` reports failed export batches; `diagnose()["failed_batches"]` counts final batch failures without exposing credentials. Successful retries are not counted; queue drops are not currently measurable through the batch processor's public API.
@@ -58,6 +59,8 @@ The OTLP receiver is not supplied in this repo; `examples/agent.py` will attempt
   exposed yet. Export failures remain counted even if later batches succeed.
 - Input/output redaction is best-effort only. Explicitly inspect anything you
   opt in to collect.
+- Attribute lists do not change an application's other OpenTelemetry exporters
+  or resource metadata. Keys are matched exactly.
 - `shutdown()` ends only ElinaObs's processor. Do not reinitialize the SDK in
   the same interpreter after shutdown.
 

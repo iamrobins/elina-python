@@ -24,15 +24,42 @@ class Config:
     capture_output: bool = False
     max_content_chars: int = 4000
     redact: Callable[[str], str] | None = field(default=None, repr=False)
+    attribute_allowlist: tuple[str, ...] | None = None
+    attribute_denylist: tuple[str, ...] = ()
+
+
+class _AttributeView:
+    def __init__(self, original, attributes) -> None:
+        self._original = original
+        self.attributes = attributes
+
+    def __getattr__(self, name):
+        return getattr(self._original, name)
 
 
 class _TrackingExporter(OTLPSpanExporter):
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, *, attribute_allowlist=None, attribute_denylist=(), **kwargs) -> None:
         super().__init__(**kwargs)
         self._lock = Lock()
         self.failed_batches = 0
+        self._allowlist = None if attribute_allowlist is None else set(attribute_allowlist)
+        self._denylist = set(attribute_denylist)
+
+    def _filter(self, value):
+        return _AttributeView(value, {
+            key: item for key, item in value.attributes.items()
+            if (self._allowlist is None or key in self._allowlist) and key not in self._denylist
+        })
 
     def export(self, spans):
+        if self._allowlist is not None or self._denylist:
+            filtered = []
+            for span in spans:
+                view = self._filter(span)
+                view.events = tuple(self._filter(event) for event in span.events)
+                view.links = tuple(self._filter(link) for link in span.links)
+                filtered.append(view)
+            spans = filtered
         try:
             result = super().export(spans)
         except Exception:
@@ -70,6 +97,8 @@ def init(
     capture_output: bool = False,
     max_content_chars: int = 4000,
     redact: Callable[[str], str] | None = None,
+    attribute_allowlist: tuple[str, ...] | None = None,
+    attribute_denylist: tuple[str, ...] = (),
 ) -> None:
     """Register a selective OTel processor, preserving existing exporters.
 
@@ -84,7 +113,17 @@ def init(
         raise ValueError("max_content_chars must be >= 100")
     if redact is not None and not callable(redact):
         raise ValueError("redact must be callable")
-    config = Config(api_key, endpoint, service_name, capture_input, capture_output, max_content_chars, redact)
+    if isinstance(attribute_allowlist, str) or isinstance(attribute_denylist, str):
+        raise ValueError("attribute lists must contain nonempty strings")
+    allowlist = None if attribute_allowlist is None else tuple(attribute_allowlist)
+    denylist = tuple(attribute_denylist)
+    for keys in (allowlist, denylist):
+        if keys is not None and any(not isinstance(key, str) or not key for key in keys):
+            raise ValueError("attribute lists must contain nonempty strings")
+    config = Config(
+        api_key, endpoint, service_name, capture_input, capture_output, max_content_chars,
+        redact, allowlist, denylist,
+    )
     with _lock:
         if _closed:
             raise RuntimeError("ElinaObs was shut down. A fresh process is required for reinitialization.")
@@ -109,6 +148,8 @@ def init(
             endpoint=endpoint,
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=5,
+            attribute_allowlist=config.attribute_allowlist,
+            attribute_denylist=config.attribute_denylist,
         )
         batch = BatchSpanProcessor(
             exporter,
