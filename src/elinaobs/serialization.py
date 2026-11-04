@@ -7,7 +7,10 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 
-_REDACT_PARTS = ("password", "secret", "token", "authorization", "api_key", "apikey")
+_REDACT_PARTS = (
+    "password", "secret", "token", "authorization", "apikey",
+    "credential", "privatekey", "accesskey", "passphrase",
+)
 
 
 def _safe(value, *, depth: int, seen: set[int]):
@@ -28,9 +31,10 @@ def _safe(value, *, depth: int, seen: set[int]):
                 for key, child in list(value.items())[:20]:
                     if not isinstance(key, str):
                         continue
+                    normalized_key = key.lower().replace("_", "").replace("-", "")
                     result[key] = (
                         "<redacted>"
-                        if any(part in key.lower() for part in _REDACT_PARTS)
+                        if any(part in normalized_key for part in _REDACT_PARTS)
                         else _safe(child, depth=depth - 1, seen=seen)
                     )
                 return result
