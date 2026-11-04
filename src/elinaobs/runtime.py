@@ -65,23 +65,23 @@ class _TrackingExporter(OTLPSpanExporter):
 
     def _filter(self, value):
         return _AttributeView(value, {
-            key: item for key, item in value.attributes.items()
+            key: item for key, item in (value.attributes or {}).items()
             if (self._allowlist is None or key in self._allowlist) and key not in self._denylist
         })
 
     def export(self, spans):
-        if self._allowlist is not None or self._denylist:
-            filtered = []
-            for span in spans:
-                view = self._filter(span)
-                view.events = tuple(self._filter(event) for event in span.events)
-                view.links = tuple(self._filter(link) for link in span.links)
-                filtered.append(view)
-            spans = filtered
         with self._lock:
             self.attempted_spans += len(spans)
         before = self._counting_session.attempts if self._counting_session is not None else 0
         try:
+            if self._allowlist is not None or self._denylist:
+                filtered = []
+                for span in spans:
+                    view = self._filter(span)
+                    view.events = tuple(self._filter(event) for event in span.events)
+                    view.links = tuple(self._filter(link) for link in span.links)
+                    filtered.append(view)
+                spans = filtered
             result = super().export(spans)
         except Exception:
             with self._lock:

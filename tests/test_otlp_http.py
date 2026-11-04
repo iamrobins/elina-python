@@ -73,10 +73,11 @@ if {existing_provider}:
 @trace(name="agent", as_type="agent")
 def agent():
     link = Link(otel_trace.get_current_span().get_span_context(), attributes={{"private.data": "link-secret"}})
-    with otel_trace.get_tracer("some.library").start_as_current_span("child", links=[link]) as child:
+    with otel_trace.get_tracer("some.library").start_as_current_span("child", links=[link, Link(otel_trace.get_current_span().get_span_context())]) as child:
         child.set_attribute("gen_ai.request.model", "example-model")
         child.set_attribute("private.data", "span-secret")
         child.add_event("test-event", {{"private.data": "event-secret"}})
+        child.add_event("plain-event")
 agent()
 assert flush(timeout_millis=10000)
 assert diagnose() == {{"failed_batches": 0, "dropped_spans": 0, "retry_attempts": {1 if retry_first else 0}}}

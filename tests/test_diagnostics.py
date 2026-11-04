@@ -1,5 +1,6 @@
 from threading import Event, Lock
 
+import pytest
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, SpanExporter, SpanExportResult
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
@@ -65,3 +66,19 @@ def test_otel_credential_provider_session_is_preserved(monkeypatch):
     monkeypatch.setattr(runtime, "_exporter", exporter)
     assert sessions == [None]
     assert diagnose()["retry_attempts"] is None
+
+
+def test_attribute_filter_failure_counts_failed_batch():
+    class BrokenSpan:
+        @property
+        def attributes(self):
+            raise RuntimeError("cannot read attributes")
+
+    exporter = runtime._TrackingExporter(
+        endpoint="http://127.0.0.1/v1/traces", attribute_denylist=("private.data",),
+    )
+    with pytest.raises(RuntimeError, match="cannot read attributes"):
+        exporter.export([BrokenSpan()])
+    assert exporter.failed_batches == 1
+    assert exporter.attempted_spans == 1
+    exporter.shutdown()
