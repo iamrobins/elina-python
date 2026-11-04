@@ -10,10 +10,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from threading import Thread
 
+import pytest
 from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
 
 
-def test_otlp_http_endpoint_bearer_auth_and_protobuf():
+@pytest.mark.parametrize("existing_provider", [False, True])
+def test_otlp_http_endpoint_bearer_auth_and_protobuf(existing_provider):
     received = []
 
     class Receiver(BaseHTTPRequestHandler):
@@ -36,14 +38,28 @@ def test_otlp_http_endpoint_bearer_auth_and_protobuf():
         script = f'''
 from opentelemetry import trace as otel_trace
 from elinaobs import init, trace, flush
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+if {existing_provider}:
+    provider = TracerProvider()
+    existing_exporter = InMemorySpanExporter()
+    provider.add_span_processor(SimpleSpanProcessor(existing_exporter))
+    otel_trace.set_tracer_provider(provider)
+    with otel_trace.get_tracer("some.library").start_as_current_span("unrelated"):
+        pass
 init(api_key="test-token", endpoint="http://127.0.0.1:{port}/v1/traces",
      service_name="smoke-test")
+if {existing_provider}:
+    assert otel_trace.get_tracer_provider() is provider
 @trace(name="agent", as_type="agent")
 def agent():
     with otel_trace.get_tracer("some.library").start_as_current_span("child"):
         pass
 agent()
 assert flush(timeout_millis=10000)
+if {existing_provider}:
+    assert sorted(s.name for s in existing_exporter.get_finished_spans()) == ["agent", "child", "unrelated"]
 '''
         repo = Path(__file__).resolve().parents[1]
         env = os.environ.copy()
