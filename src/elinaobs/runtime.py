@@ -2,11 +2,12 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass, field
 from threading import Lock, RLock
-from typing import Callable
+from typing import Callable, Literal
 
-from requests import Session
+from requests import Session, put
 from opentelemetry import trace as otel_trace
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -204,6 +205,26 @@ def flush(timeout_millis: int = 5000) -> bool:
     with _lock, exporter._lock:
         _dropped_spans = max(_dropped_spans, processor.flushed_spans - exporter.attempted_spans)
         return exporter.failed_batches == 0 and _dropped_spans == 0
+
+
+def submit_feedback(trace_id: str, verdict: Literal["good", "bad"], note: str | None = None) -> None:
+    """Optionally attach application feedback to an exported trace."""
+    config = get_config()
+    if not isinstance(trace_id, str) or not re.fullmatch(r"[0-9a-f]{32}", trace_id):
+        raise ValueError("trace_id must be 32 lowercase hex characters")
+    if verdict not in ("good", "bad"):
+        raise ValueError("verdict must be 'good' or 'bad'")
+    if note is not None and (not isinstance(note, str) or len(note.strip()) > 2000):
+        raise ValueError("note must be at most 2000 characters")
+    if not flush():
+        raise RuntimeError("Trace export failed; feedback was not sent")
+    response = put(
+        f"{config.endpoint.rstrip('/')}/{trace_id}/feedback",
+        headers={"Authorization": f"Bearer {config.api_key}"},
+        json={"verdict": verdict, "note": note.strip() or None if note is not None else None},
+        timeout=5,
+    )
+    response.raise_for_status()
 
 
 def diagnose() -> dict[str, int | None]:

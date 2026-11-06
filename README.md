@@ -14,7 +14,7 @@ pytest -q
 ## Public API
 
 ```python
-from elinaobs import init, trace, flush, shutdown, diagnose
+from elinaobs import init, trace, flush, shutdown, diagnose, submit_feedback
 
 init(api_key="...", endpoint="http://localhost:3000/v1/traces", service_name="my-agent")
 
@@ -24,6 +24,17 @@ async def run(question):
 
 # The existing OTel-instrumented operations called inside run() are children.
 ```
+
+Application feedback is optional. After a trace has finished, an app with a verdict can send it using the same project key. Inside a decorated function, capture the trace ID and keep it with the result:
+
+```python
+from opentelemetry import trace as otel_trace
+trace_id = f"{otel_trace.get_current_span().get_span_context().trace_id:032x}"
+# Later, after the traced function returns:
+submit_feedback(trace_id, "bad", note="Wrong answer")  # trace_id is 32 lowercase hex characters
+```
+
+Apps without a feedback signal do not call this function. Feedback is stored separately from the dashboard's human review. Keep the project key in server-side code, not in a browser.
 
 To send a demo trace to the local Elina server, create a project in the dashboard and copy its one-time ingestion key. Then, from this directory in PowerShell:
 
