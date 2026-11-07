@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "elinaobs-sdk"
+license = "MIT"
 version = "0.1.0"
 description = "Framework-agnostic Python LLM tracing using OpenTelemetry"
 readme = "README.md"

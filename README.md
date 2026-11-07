@@ -1,8 +1,8 @@
 # ElinaObs Python SDK (v0.1 starter)
 
-An **implementation starter**, not a released SDK. Name `elinaobs` is a placeholder. License is intentionally not selected yet.
+An **implementation starter**, not a released SDK. Name `elinaobs` is a placeholder. Licensed under MIT.
 
-The locked v0.1 Python SDK implementation checklist is complete; release naming, licensing, and publishing remain separate decisions.
+The locked v0.1 Python SDK implementation checklist is complete; release naming and publishing remain separate decisions.
 
 ## Install
 
