@@ -1,10 +1,16 @@
-# ElinaObs Python SDK (v0.1 starter)
+# ElinaObs Python SDK
 
-An **implementation starter**, not a released SDK. Name `elinaobs` is a placeholder. Licensed under MIT.
-
-The locked v0.1 Python SDK implementation checklist is complete; release naming and publishing remain separate decisions.
+Python tracing SDK for self-hosted Elina. Licensed under MIT.
 
 ## Install
+
+Once published on PyPI:
+
+```bash
+python -m pip install elinaobs
+```
+
+For development from this repository:
 
 ```bash
 python -m pip install -e '.[dev]'

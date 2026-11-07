@@ -3,7 +3,7 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "elinaobs-sdk"
+name = "elinaobs"
 license = "MIT"
 version = "0.1.0"
 description = "Framework-agnostic Python LLM tracing using OpenTelemetry"
