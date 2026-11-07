@@ -1,4 +1,4 @@
-"""ElinaObs capture selection, NOT a replacement for OTel parent context."""
+"""Elina capture selection, NOT a replacement for OTel parent context."""
 from contextvars import ContextVar
 
 # Inherited by normal sync nesting and asyncio tasks.

@@ -110,9 +110,9 @@ _dropped_spans = 0
 
 def get_config() -> Config:
     if _config is None:
-        raise RuntimeError("ElinaObs is not initialized. Call elinaobs.init(...) before executing @trace functions.")
+        raise RuntimeError("Elina is not initialized. Call elinaobs.init(...) before executing @trace functions.")
     if _closed:
-        raise RuntimeError("ElinaObs has been shut down; restart the process before using it again.")
+        raise RuntimeError("Elina has been shut down; restart the process before using it again.")
     return _config
 
 
@@ -154,18 +154,18 @@ def init(
     )
     with _lock:
         if _closed:
-            raise RuntimeError("ElinaObs was shut down. A fresh process is required for reinitialization.")
+            raise RuntimeError("Elina was shut down. A fresh process is required for reinitialization.")
         if _config is not None:
             if _config == config:
                 return  # idempotent init
-            raise RuntimeError("ElinaObs has already been initialized with different settings")
+            raise RuntimeError("Elina has already been initialized with different settings")
         provider = otel_trace.get_tracer_provider()
         if isinstance(provider, ProxyTracerProvider):
             owned = TracerProvider(resource=Resource.create({"service.name": service_name}))
             otel_trace.set_tracer_provider(owned)
             provider = otel_trace.get_tracer_provider()
             if provider is not owned:
-                raise RuntimeError("Could not register ElinaObs tracer provider: another provider was installed")
+                raise RuntimeError("Could not register Elina tracer provider: another provider was installed")
             _owned_provider = owned
         if not isinstance(provider, TracerProvider):
             raise RuntimeError(
@@ -193,7 +193,7 @@ def init(
 
 
 def flush(timeout_millis: int = 5000) -> bool:
-    """Flush ElinaObs's exporter; report failed batches or dropped spans."""
+    """Flush Elina's exporter; report failed batches or dropped spans."""
     global _dropped_spans
     processor = _processor
     if processor is None:

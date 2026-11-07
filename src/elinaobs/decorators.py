@@ -72,7 +72,7 @@ def trace(
                 settings = get_config()
                 token = capture_active.set(True)
                 try:
-                    tracer = otel_trace.get_tracer("elinaobs.sdk", "0.1.0")
+                    tracer = otel_trace.get_tracer("elinaobs.sdk", "0.1.1")
                     with tracer.start_as_current_span(
                         label, attributes={"elinaobs.observation.type": as_type}
                     ) as span:
@@ -89,7 +89,7 @@ def trace(
             settings = get_config()
             token = capture_active.set(True)
             try:
-                tracer = otel_trace.get_tracer("elinaobs.sdk", "0.1.0")
+                tracer = otel_trace.get_tracer("elinaobs.sdk", "0.1.1")
                 with tracer.start_as_current_span(
                     label, attributes={"elinaobs.observation.type": as_type}
                 ) as span:

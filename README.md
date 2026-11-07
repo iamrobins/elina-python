@@ -1,10 +1,8 @@
-# ElinaObs Python SDK
+# Elina Python SDK
 
 Python tracing SDK for self-hosted Elina. Licensed under MIT.
 
 ## Install
-
-Once published on PyPI:
 
 ```bash
 python -m pip install elinaobs
@@ -52,9 +50,9 @@ python examples/agent.py
 
 The script prints the trace ID and reports whether export succeeded. Open the project’s Traces page and select that ID to inspect the three spans and their captured input/output.
 
-Only operations that are explicitly decorated or already instrumented by a compatible OpenTelemetry instrumentation package create spans. **No framework integrations are installed, imported, or configured by ElinaObs.**
+Only operations that are explicitly decorated or already instrumented by a compatible OpenTelemetry instrumentation package create spans. **No framework integrations are installed, imported, or configured by Elina.**
 
-The Elina receiver lives in the sibling `elina-server` directory. Start it before running `examples/agent.py`. The default tests use in-memory and local HTTP receivers.
+The Elina receiver lives in the `iamrobins/elina` repository. Start it before running `examples/agent.py`. The default tests use in-memory and local HTTP receivers.
 
 To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINARY` to the Collector executable path and run `python -m pytest -q tests/test_collector.py`. This optional test starts a local Collector with a file exporter and checks the received spans.
 
@@ -66,7 +64,7 @@ To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINAR
 - OTLP/HTTP protobuf, bearer-token auth, background batching.
 - Optional bounded input/output capture, disabled by default.
 - An optional `redact` callback can remove secrets from captured free text before export.
-- `attribute_allowlist` and `attribute_denylist` filter span, event, and link attributes in ElinaObs exports; the denylist wins when both contain a key.
+- `attribute_allowlist` and `attribute_denylist` filter span, event, and link attributes in Elina exports; the denylist wins when both contain a key.
 - Exceptions automatically record OTel error status/events.
 - Shares an existing OpenTelemetry SDK TracerProvider when present.
 - `flush()` reports failed export batches or dropped spans. `diagnose()` returns `failed_batches`, `dropped_spans`, and `retry_attempts` without exposing credentials. Drop counts are updated after a successful processor flush; retry attempts count extra HTTP requests made for a batch.
@@ -82,7 +80,7 @@ To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINAR
 
 - SDK processor cannot modify existing OTel provider sampling or resources.
 - Capture filtering uses a ContextVar marker; parent spans begun before a
-  decorator scope are not exported to ElinaObs unless also eligible.
+  decorator scope are not exported to Elina unless also eligible.
 - `as_type="event"` is a timed span category, not an OTel instant event.
 - Incoming external spans from `opentelemetry-instrument` share global provider
   and may require controlling initialization order.
@@ -94,7 +92,7 @@ To also verify export through a real OpenTelemetry Collector, set `OTELCOL_BINAR
   opt in to collect.
 - Attribute lists do not change an application's other OpenTelemetry exporters
   or resource metadata. Keys are matched exactly.
-- `shutdown()` ends only ElinaObs's processor. Do not reinitialize the SDK in
+- `shutdown()` ends only Elina's processor. Do not reinitialize the SDK in
   the same interpreter after shutdown.
 
 See [docs/LLD.md](docs/LLD.md) for the finalized architecture and build checklist.

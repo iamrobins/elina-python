@@ -5,17 +5,21 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "elinaobs"
 license = "MIT"
-version = "0.1.0"
+version = "0.1.1"
 description = "Framework-agnostic Python LLM tracing using OpenTelemetry"
 readme = "README.md"
 requires-python = ">=3.11"
-authors = [{name = "ElinaObs Contributors"}]
+authors = [{name = "Elina Contributors"}]
 dependencies = [
     "opentelemetry-api>=1.36,<2",
     "opentelemetry-sdk>=1.36,<2",
     "opentelemetry-exporter-otlp-proto-http>=1.36,<2",
     "requests>=2,<3",
 ]
+
+[project.urls]
+Homepage = "https://getelina.com"
+Source = "https://github.com/iamrobins/elina"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.24", "mypy>=1.10", "opentelemetry-instrumentation-requests>=0.57b0,<1"]
