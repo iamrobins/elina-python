@@ -1,0 +1,20 @@
+name: Publish to PyPI
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: elinaobs-pypy
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - run: python -m pip install build
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          user: __token__
+          password: ${{ secrets.PYPY_TOKEN }}
